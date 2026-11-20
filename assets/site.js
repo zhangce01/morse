@@ -68,6 +68,7 @@
 
   // ---------- hero, upper part: rows of frames of the example streams, flowing right to left; the ones on screen (up to a cap)
   // play their stream's time-lapse. They die away downward; the tape begins only below where they end ----------
+  var ENTER = [];          // [row, delay]: the frame rows, uncovered by the tape's draw loop so that both enter on one clock
   (function () {
     var flow = $('flow'), T = DATA.wt;
     if (!flow || !T) return;
@@ -85,10 +86,10 @@
       row.append(run); flow.append(row); runs.push([run, 22 + (r * 7) % 11]);          // px per second for this row
     }
     function pace() { runs.forEach(function (x) { x[0].style.setProperty('--t', (x[0].scrollWidth / 2 / x[1]).toFixed(1) + 's'); }); }
-    // entrance: each row is uncovered from the right at the tape's speed, with the delay of the tape row at its height (same formula as below)
+    // entrance: each row is uncovered from the right by the tape's draw loop, with the delay formula of the tape rows
     var pitch = Math.round((innerWidth < 700 ? 5 : 8) * 4.6);
-    [].forEach.call(flow.children, function (row) { var k = Math.round((row.offsetTop + row.offsetHeight / 2) / pitch); row.style.setProperty('--wd', (flow.offsetWidth / 2400).toFixed(3) + 's'); row.style.setProperty('--wl', (0.08 + ((k * 13) % 7) * 0.03).toFixed(3) + 's'); });
-    pace(); addEventListener('load', pace);
+    [].forEach.call(flow.children, function (row) { var k = Math.round((row.offsetTop + row.offsetHeight / 2) / pitch); ENTER.push([row, 0.08 + ((k * 13) % 7) * 0.03]); });
+    setTimeout(function () { ENTER.forEach(function (x) { x[0].style.clipPath = 'none'; }); ENTER.length = 0; }, 4000);          // whatever happens, the rows end up visible
     if (RM || !('IntersectionObserver' in window)) return;
     var seen = [], playing = [];
     function start(tile) {
@@ -156,6 +157,7 @@
       var t = (now - born) / 1000, R2 = R * R, la = RM ? 1 : Math.max(0, Math.min(1, (t - 1.5) / 0.8));      // the lens waits until the tape has been keyed in
       if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; }
       if (!lens.held) idle(t);
+      for (var e = ENTER.length - 1; e >= 0; e--) { var fx = W - (t - ENTER[e][1]) * 2400; ENTER[e][0].style.clipPath = fx <= 0 ? 'none' : 'inset(0 0 0 ' + Math.min(W, fx).toFixed(0) + 'px)'; if (fx <= 0) ENTER.splice(e, 1); }
       lens.x += (lens.tx - lens.x) * (RM ? 1 : 0.11); lens.y += (lens.ty - lens.y) * (RM ? 1 : 0.11);
       ctx.clearRect(0, 0, W, H); ctx.lineCap = 'round'; ctx.lineWidth = U; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = '700 ' + Math.round(U * 1.9) + 'px "JetBrains Mono", ui-monospace, Consolas, monospace';
       for (var r = 0; r < rows.length; r++) {
