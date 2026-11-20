@@ -151,20 +151,6 @@
     })();
   })();
 
-  // ---------- 01: three examples, one film each ----------
-  (function () {
-    var EX = [['epm', 'EPM · EPISODIC MEMORY', 'Which tool, 400 s ago?'], ['asi', 'ASI · ACTION SEQUENCE', 'What came before the slicing?'], ['fpd', 'FPD · FUTURE PREDICTION', 'What happens next?']], tabs = $('extabs');
-    function show(i) {
-      [].forEach.call(tabs.children, function (b, k) { b.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
-      films.exfilm.show('assets/video/replay-' + EX[i][0] + '.mp4', 'assets/video/replay-' + EX[i][0] + '.jpg');
-    }
-    EX.forEach(function (e, i) {
-      var b = h('button'), im = new Image(), sp = h('span'); b.type = 'button'; im.src = 'assets/img/ex-' + e[0] + '.jpg'; im.alt = ''; im.loading = 'lazy';
-      sp.append(h('small', '', e[1]), h('b', '', e[2])); b.append(im, sp); b.addEventListener('click', function () { show(i); }); tabs.append(b);
-    });
-    show(0);
-  })();
-
   // ---------- 02: one diagram, three stages (by hand / closed world / open world) ----------
   (function () {
     var svg = $('dia').querySelector('svg'), cards = [].slice.call(D.querySelectorAll('#waylist .way')), timer = 0;
@@ -266,6 +252,146 @@
     setInterval(function () { if (auto && seen && performance.now() > hold) pick(cur % N + 1); }, 3600);
     if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { seen = es[0].isIntersecting; }, { threshold: 0.3 }).observe($('rx')); else seen = true;
     pick(1); btn();
+  })();
+
+  // ---------- 04: what the final harness holds for three questions, and what it sends to the model (click to inspect) ----------
+  (function () {
+    var M = DATA.mem, box = $('mx');
+    if (!M || !box) return;
+    var tabs = $('mx-tabs'), qbox = $('mx-q'), line = $('mx-line'), views = $('mx-views'), rules = $('mx-rules'), list = $('mx-list'), side = $('mx-side');
+    var FOCUS = { epm: 1, asi: 165, fpd: 126 }, COLS = 10;               // the frame the paper's figure shows as recalled
+    var ex, view = 'frames', sel = null, rule = null, at, stored, sent, recent, relMin, relMax, ruleCount;
+    function clock(t) { return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
+    function span(a, b) { return a === b ? a + ' s' : a + '–' + b + ' s'; }
+    function pad(t) { return ('00' + t).slice(-3); }
+    function thumb(t) {
+      var i = at[t], rows = Math.ceil(ex.times.length / COLS), b = h('button', 'th' + (sent[t] || recent[t] ? ' sent' : '') + (sel && sel.k === 'f' && sel.t === t ? ' sel' : ''));
+      b.type = 'button'; b.setAttribute('aria-label', 'Frame at ' + t + ' seconds');
+      b.style.cssText = 'aspect-ratio:160/' + ex.th + ';background-image:url(assets/img/mem/' + ex.key + '-grid.jpg);background-size:' + COLS * 100 + '% ' + rows * 100 + '%;background-position:' +
+        (100 * (i % COLS) / (COLS - 1)).toFixed(3) + '% ' + (rows > 1 ? 100 * Math.floor(i / COLS) / (rows - 1) : 0).toFixed(3) + '%';
+      if (rule && !(sent[t] && sent[t].indexOf(rule) >= 0)) b.classList.add('dim');
+      b.append(h('span', '', clock(t))); b.addEventListener('click', function () { pick({ k: 'f', t: t }); });
+      return b;
+    }
+    function grid(times) { var g = h('div', 'mx-grid'); times.forEach(function (t) { g.append(thumb(t)); }); return g; }
+    function inSpan(a, b) { return ex.times.filter(function (t) { return t >= a && t <= b; }); }
+
+    function drawLine() {
+      var T = ex.T, X = function (t) { return 16 + 968 * t / T; }, s = el('svg', { viewBox: '0 0 1000 86', role: 'img', 'aria-label': 'Timeline of the stream: stored frames, evicted frames, frames sent to the model and step-log entries.' });
+      s.append(el('rect', { x: 16, y: 20, width: 968, height: 30, rx: 5, fill: 'var(--bg)' }));
+      ex.dropped.forEach(function (t) { s.append(el('rect', { x: X(t) - 0.6, y: 29, width: 1.2, height: 12, fill: 'var(--faint)', opacity: 0.4 })); });
+      ex.stored.forEach(function (f) { s.append(el('rect', { x: X(f[0]) - 1.4, y: 24, width: 2.8, height: 22, rx: 1, fill: 'var(--violet)' })); });
+      ex.steps.forEach(function (st, i) { s.append(el('rect', { x: X(st[0]), y: 56, width: Math.max(2, X(st[1]) - X(st[0]) - 1), height: 6, rx: 2, fill: 'var(--good)', opacity: i % 2 ? 0.38 : 0.7 })); });
+      ex.sent.forEach(function (f) { s.append(el('circle', { cx: X(f[0]), cy: 10, r: 4.2, fill: 'var(--amber)' })); });
+      ex.recent.forEach(function (t) { s.append(el('circle', { cx: X(t), cy: 10, r: 4.2, fill: 'var(--amber)', stroke: 'var(--ink)', 'stroke-width': 1.4 })); });
+      s.append(el('text', { x: 16, y: 80 }, '0 s'), el('text', { x: 984, y: 80, 'text-anchor': 'end' }, 'question at ' + T + ' s'));
+      if (sel) {
+        var a = sel.k === 'f' ? sel.t : sel.a, b = sel.k === 'f' ? sel.t : sel.b;
+        if (b > a) s.append(el('rect', { x: X(a), y: 2, width: X(b) - X(a), height: 64, rx: 3, fill: 'var(--violet)', opacity: 0.13 }));
+        s.append(el('path', { d: 'M' + X(a).toFixed(1) + ' 0V68', stroke: 'var(--ink)', 'stroke-width': 1.6 }));
+      }
+      s.addEventListener('click', function (e) {
+        var r = s.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width * 1000) - 16) / 968 * T, best = ex.times[0];
+        ex.times.forEach(function (x) { if (Math.abs(x - t) < Math.abs(best - t)) best = x; });
+        pick({ k: 'f', t: best });
+      });
+      line.replaceChildren(s);
+    }
+
+    function drawQ() {
+      var l = h('div'), r = h('div', 'mx-opt');
+      l.append(h('div', 'mx-lab', ex.video + ' · ' + ex.task + ' · asked ' + ex.T + ' s into the stream'), h('h3', '', ex.q),
+        h('p', 'sub', 'Same frozen model. The seed harness sends ' + ex.seed.sends + '; the final harness sends ' + ex.sent.length + ' retrieved keyframes, the 4 most recent frames and its notes.'));
+      r.append(h('span'), h('span'), h('span', 'hd', 'Seed harness'), h('span', 'hd', 'Final harness'));
+      Object.keys(ex.opts).forEach(function (k) {
+        r.append(h('b', '', k), h('span', k === ex.gold ? 'gold' : '', ex.opts[k]));
+        [['seed', ''], ['morse', ' m']].forEach(function (w) {
+          var p = ex[w[0]].p[k], pb = h('div', 'pb' + w[1] + (ex[w[0]].a === k ? ' pick' : '')), f = h('i'); f.style.width = (100 * p).toFixed(1) + '%';
+          pb.append(f, h('span', '', (100 * p).toFixed(p >= 0.0995 ? 0 : 1) + '%')); r.append(pb);
+        });
+      });
+      qbox.replaceChildren(l, r);
+    }
+
+    function drawViews() {
+      var V = [['frames', 'Frame store', ex.stored.length], ['steps', 'Step log', ex.steps.length], ['chapters', 'Chapter notes', ex.chapters.length], ['prompt', 'Sent to the model', ex.sent.length + ex.recent.length]];
+      views.replaceChildren.apply(views, V.map(function (v) {
+        var b = h('button', '', v[1]); b.type = 'button'; b.append(h('small', '', v[2])); b.setAttribute('aria-pressed', view === v[0] ? 'true' : 'false');
+        b.addEventListener('click', function () { view = v[0]; rule = null; drawViews(); drawList(); }); return b;
+      }));
+    }
+
+    function drawList() {
+      rules.replaceChildren(); var kids = [];
+      if (view === 'frames') {
+        rules.append(h('span', 'lbl', 'SENT BECAUSE OF'));
+        Object.keys(ruleCount).forEach(function (name) {
+          var b = h('button', '', name + ' · ' + ruleCount[name]); b.type = 'button'; b.setAttribute('aria-pressed', rule === name ? 'true' : 'false');
+          b.addEventListener('click', function () { rule = rule === name ? null : name; drawList(); }); rules.append(b);
+        });
+        kids.push(grid(ex.stored.map(function (f) { return f[0]; })));
+      } else if (view === 'steps' || view === 'chapters') {
+        var rows = h('div', 'mx-rows'), src = view === 'steps' ? ex.steps : ex.chapters, k = view === 'steps' ? 's' : 'c';
+        src.forEach(function (st, i) {
+          var b = h('button', 'mx-row' + (k === 'c' ? ' ch' : '') + (sel && sel.k === k && sel.i === i ? ' sel' : '')), tm = h('time', '', span(st[0], st[1])); b.type = 'button';
+          b.append(tm, h('span', '', st[2]));
+          if (k === 's' && inSpan(st[0], st[1]).some(function (t) { return sent[t]; })) b.append(h('em', '', 'FRAME SENT'));
+          b.addEventListener('click', function () { pick({ k: k, i: i, a: st[0], b: st[1] }); }); rows.append(b);
+        });
+        kids.push(rows);
+      } else {
+        kids.push(h('div', 'mx-sub', ex.sent.length + ' retrieved keyframes'), grid(ex.sent.map(function (f) { return f[0]; })),
+          h('div', 'mx-sub', 'The ' + ex.recent.length + ' most recent frames'), grid(ex.recent), h('div', 'mx-sub', 'Notes from memory, as text'));
+        ex.notes.forEach(function (n) { var d = h('div', 'mx-note'); d.append(h('b', '', n[0] + (n[1].length > 1 ? ' · ' + n[1].length : '')), h('p', '', n[1].join(' '))); kids.push(d); });
+      }
+      list.replaceChildren.apply(list, kids);
+    }
+
+    function drawSide() {
+      var kids = [];
+      if (!sel) { side.replaceChildren(h('p', '', 'Select a frame, a step-log entry or a chapter note.')); return; }
+      if (sel.k === 'f') {
+        var t = sel.t, im = new Image(), bd = h('div', 'badges'), st = stored[t], why = sent[t];
+        im.className = 'big'; im.alt = 'Frame of the stream at ' + t + ' seconds'; im.width = 480; im.height = Math.round(480 * ex.th / 160); im.src = 'assets/img/mem/' + ex.key + '/' + pad(t) + '.jpg';
+        bd.append(h('span', 'badge ' + (st ? 'k' : 'n'), st ? 'in the frame store' : 'not in the frame store'));
+        bd.append(h('span', 'badge ' + (why || recent[t] ? 's' : 'n'), why || recent[t] ? 'sent to the model' : 'not sent for this question'));
+        kids.push(im, h('div', 'mx-lab', 'Frame'), h('h3', '', 't = ' + t + ' s'), bd);
+        if (why || recent[t]) { var w = h('div', 'sec'); w.append(h('div', 'mx-lab', 'Selected by'), h('p', 'big', (why || []).concat(recent[t] ? ['the 4 most recent frames'] : []).join(' · '))); kids.push(w); }
+        if (st) {
+          var rr = h('div', 'sec'), bar = h('div', 'mx-rel'), tr = h('div'), fi = h('i'); fi.style.width = (8 + 92 * (st[0] - relMin) / (relMax - relMin || 1)).toFixed(1) + '%'; tr.append(fi);
+          bar.append(tr, h('span', '', st[0].toFixed(3))); rr.append(h('div', 'mx-lab', 'CLIP relevance to the question'), bar);
+          if (st[1]) rr.append(h('p', '', 'Key frame of its segment, protected from eviction.'));
+          kids.push(rr);
+        }
+        var steps = ex.steps.filter(function (s) { return s[0] <= t && t <= s[1]; });
+        if (steps.length) { var sl = h('div', 'sec'); sl.append(h('div', 'mx-lab', 'Step log at this moment')); steps.slice(0, 2).forEach(function (s) { sl.append(h('p', '', span(s[0], s[1]) + ': ' + s[2])); }); kids.push(sl); }
+      } else {
+        var src = sel.k === 's' ? ex.steps : ex.chapters, it = src[sel.i], fr = inSpan(it[0], it[1]), ns = fr.filter(function (x) { return sent[x] || recent[x]; }).length, sec = h('div', 'sec');
+        kids.push(h('div', 'mx-lab', sel.k === 's' ? 'Step-log entry · written as the stream played' : 'Chapter note · summary of a ~64-s span'), h('h3', '', span(it[0], it[1])), h('p', sel.k === 's' ? 'big' : '', it[2]));
+        sec.append(h('div', 'mx-lab', fr.length ? fr.length + ' frame' + (fr.length > 1 ? 's' : '') + ' of this span in memory · ' + ns + ' sent' : 'No frame of this span is still stored'));
+        if (fr.length) { var g = grid(fr.slice(0, 8)); sec.append(g); }
+        kids.push(sec);
+      }
+      side.replaceChildren.apply(side, kids);
+    }
+
+    function pick(s) { sel = s; drawLine(); drawList(); drawSide(); }
+    function load(i) {
+      ex = M[i]; at = {}; stored = {}; sent = {}; recent = {}; ruleCount = {}; rule = null; view = 'frames';
+      ex.times.forEach(function (t, k) { at[t] = k; });
+      ex.stored.forEach(function (f) { stored[f[0]] = [f[1], f[2]]; });
+      ex.sent.forEach(function (f) { sent[f[0]] = f[1]; f[1].forEach(function (n) { ruleCount[n] = (ruleCount[n] || 0) + 1; }); });
+      ex.recent.forEach(function (t) { recent[t] = 1; });
+      relMin = Math.min.apply(null, ex.stored.map(function (f) { return f[1]; })); relMax = Math.max.apply(null, ex.stored.map(function (f) { return f[1]; }));
+      [].forEach.call(tabs.children, function (b, k) { b.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
+      var f = FOCUS[ex.key]; drawQ(); drawViews();
+      pick({ k: 'f', t: at[f] != null ? f : ex.sent[0][0] });
+    }
+    M.forEach(function (e, i) {
+      var b = h('button'), im = new Image(), sp = h('span'); b.type = 'button'; im.src = 'assets/img/ex-' + e.key + '.jpg'; im.alt = ''; im.loading = 'lazy';
+      sp.append(h('small', '', e.code + ' · ' + e.task.toUpperCase()), h('b', '', e.q)); b.append(im, sp); b.addEventListener('click', function () { load(i); }); tabs.append(b);
+    });
+    load(0);
   })();
 
   // ---------- 05: results explorer ----------
