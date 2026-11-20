@@ -85,6 +85,9 @@
       row.append(run); flow.append(row); runs.push([run, 22 + (r * 7) % 11]);          // px per second for this row
     }
     function pace() { runs.forEach(function (x) { x[0].style.setProperty('--t', (x[0].scrollWidth / 2 / x[1]).toFixed(1) + 's'); }); }
+    // entrance: each row is uncovered from the right at the tape's speed, with the delay of the tape row at its height (same formula as below)
+    var pitch = Math.round((innerWidth < 700 ? 5 : 8) * 4.6);
+    [].forEach.call(flow.children, function (row) { var k = Math.round((row.offsetTop + row.offsetHeight / 2) / pitch); row.style.setProperty('--wd', (flow.offsetWidth / 2400).toFixed(3) + 's'); row.style.setProperty('--wl', (0.08 + ((k * 13) % 7) * 0.03).toFixed(3) + 's'); });
     pace(); addEventListener('load', pace);
     if (RM || !('IntersectionObserver' in window)) return;
     var seen = [], playing = [];
@@ -140,7 +143,7 @@
       for (var r = 0, n = Math.ceil(H / P) + 1; r < n; r++) {
         var L = lay(TEXT[(r * 5 + 2) % TEXT.length]);
         rows.push({ y: r * P + P * 0.62, m: L.marks, l: L.letters, len: L.len * U, v: RM ? 0 : 12 + ((r * 7) % 11) * 2.3, ph: ((r * 733) % 997) / 997 * L.len * U, a: [0.3, 0.46, 0.38, 0.58][r % 4],
-          sig: -1, next: 1.5 + ((r * 37) % 23) * 0.6, d: 0.05 + r * 0.022 + ((r * 13) % 7) * 0.03 });
+          sig: -1, next: 1.5 + ((r * 37) % 23) * 0.6, d: 0.08 + ((r * 13) % 7) * 0.03 });          // same start for every row but a small jitter; the frame rows above use the same formula
       }
       if (lens.x < -900) { idle(0); lens.x = lens.tx; lens.y = lens.ty; }
     }
@@ -150,7 +153,7 @@
     }
     function seg(x, y, w) { ctx.moveTo(x + U / 2, y); ctx.lineTo(x + w - U / 2 + 0.01, y); }
     function draw(now) {
-      var t = (now - born) / 1000, R2 = R * R, la = RM ? 1 : Math.max(0, Math.min(1, (t - 2.3) / 0.8));      // the lens waits until the tape has been keyed in
+      var t = (now - born) / 1000, R2 = R * R, la = RM ? 1 : Math.max(0, Math.min(1, (t - 1.5) / 0.8));      // the lens waits until the tape has been keyed in
       if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; }
       if (!lens.held) idle(t);
       lens.x += (lens.tx - lens.x) * (RM ? 1 : 0.11); lens.y += (lens.ty - lens.y) * (RM ? 1 : 0.11);

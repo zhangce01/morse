@@ -54,9 +54,9 @@ html.js [data-r].in { opacity: 1; transform: none; }
 /* upper part: rows of the streams' frames, dying away downward (gone by 44% of the height); lower part: the tape, growing from
    nothing (from 40%) to full strength. They cross only where both are faint, so there is no empty band */
 .flow { position: absolute; left: 0; right: 0; top: 0; height: 66%; z-index: 0; display: grid; grid-template-rows: repeat(var(--nr, 4), minmax(0, 1fr)); gap: 14px; padding-top: 14px; pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); animation: flowin 1.3s cubic-bezier(.2, .7, .2, 1) both; }
-@keyframes flowin { from { opacity: 0; transform: translateX(60px); } }
-.frow { position: relative; overflow: hidden; }
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); }
+.frow { position: relative; overflow: hidden; animation: wipe var(--wd, .6s) linear var(--wl, 0s) both; }          /* uncovered from the right, in step with the tape (site.js sets the times) */
+@keyframes wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
 .frun { display: flex; gap: 14px; padding-right: 14px; height: 100%; width: max-content; animation: flowx var(--t, 120s) linear infinite; will-change: transform; }
 @keyframes flowx { to { transform: translateX(-50%); } }
 .ft { position: relative; flex: none; height: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #d6d3e2; box-shadow: 0 1px 2px rgba(20, 22, 25, .08), 0 10px 22px rgba(20, 22, 25, .14); }
@@ -400,7 +400,7 @@ dialog#zoom[open] { animation: zoomin .25s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html.js [data-r] { opacity: 1; transform: none; transition: none; }
-  .way.on.auto u, .rx-anim, .frun, .flow { animation: none !important; } .island .pill { transition: none; }
+  .way.on.auto u, .rx-anim, .frun, .frow { animation: none !important; } .island .pill { transition: none; }
   .bar .f { transition: none; }
 }
 }
