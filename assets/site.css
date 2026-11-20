@@ -96,7 +96,7 @@ html.js [data-r].in { opacity: 1; transform: none; }
 .film .fbar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(21, 17, 42, .07); }
 .film .fbar b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5a3ec8, #c9760f); }
 main .film { margin-bottom: 18px; }
-.segs { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.segs { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .segs button { border: 0; background: none; padding: 0; text-align: left; font: 600 12.5px/1.2 var(--display); color: var(--faint); white-space: nowrap; transition: color .2s; }
 .segs button i { display: block; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-bottom: 7px; }
 .segs button i b { display: block; height: 100%; width: 0; background: var(--violet); }
