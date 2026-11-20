@@ -52,7 +52,7 @@ html.js [data-r].in { opacity: 1; transform: none; }
    summary. A lens decodes the marks under it into letters; a veil keeps the words on the left readable */
 .hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 92px 0 66px; overflow: hidden; overflow: clip; background: var(--bg); }
 /* upper part: rows of the streams' frames, dying away downward (gone by 44% of the height); lower part: the tape, growing from
-   nothing (from 46%) to full strength. The two never overlap */
+   nothing (from 40%) to full strength. They cross only where both are faint, so there is no empty band */
 .flow { position: absolute; left: 0; right: 0; top: 0; height: 66%; z-index: 0; display: grid; grid-template-rows: repeat(var(--nr, 4), minmax(0, 1fr)); gap: 14px; padding-top: 14px; pointer-events: none;
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); mask-image: linear-gradient(180deg, #000 0, #000 24%, transparent 66%); animation: flowin 1.3s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes flowin { from { opacity: 0; transform: translateX(60px); } }
@@ -61,7 +61,7 @@ html.js [data-r].in { opacity: 1; transform: none; }
 @keyframes flowx { to { transform: translateX(-50%); } }
 .ft { position: relative; flex: none; height: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #d6d3e2; box-shadow: 0 1px 2px rgba(20, 22, 25, .08), 0 10px 22px rgba(20, 22, 25, .14); }
 .ft img, .ft video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; } .ft video { opacity: 0; transition: opacity .5s; } .ft video.on { opacity: 1; }
-.field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; -webkit-mask-image: linear-gradient(180deg, transparent 46%, #000 70%); mask-image: linear-gradient(180deg, transparent 46%, #000 70%); }
+.field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; -webkit-mask-image: linear-gradient(180deg, transparent 40%, #000 66%); mask-image: linear-gradient(180deg, transparent 40%, #000 66%); }
 .veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(700px 78% at calc(max(0px, 50% - 560px) + 330px) 50%, color-mix(in srgb, var(--bg) 96%, transparent) 0%, color-mix(in srgb, var(--bg) 88%, transparent) 55%, transparent 100%),
     radial-gradient(820px 44% at calc(max(0px, 50% - 560px) + 300px) 27%, color-mix(in srgb, var(--bg) 95%, transparent) 0%, color-mix(in srgb, var(--bg) 90%, transparent) 58%, transparent 100%),
