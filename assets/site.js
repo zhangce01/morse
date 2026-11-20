@@ -43,16 +43,27 @@
     onReveal(n.closest('[data-r]'), function () { tween(1000, function (p) { n.textContent = (from + (to - from) * p).toFixed(dec); }); });
   });
 
-  // ---------- nav: progress line and the section in view ----------
+  // ---------- nav island: the section in view gets the dark pill; on phones the links fold into a menu ----------
   (function () {
-    var links = [].slice.call(D.querySelectorAll('#navlinks a')), secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); }), prog = $('prog'), busy = false;
-    function upd() {
-      busy = false; var cur = -1, max = root.scrollHeight - innerHeight;
-      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 130) cur = i;
-      links.forEach(function (a, i) { a.classList.toggle('cur', i === cur); });
-      prog.style.transform = 'scaleX(' + (max > 0 ? clamp(scrollY / max) : 0).toFixed(4) + ')';
+    var nav = $('island'), menu = $('menu'), pill = $('pill'), links = [].slice.call(D.querySelectorAll('#navlinks a')), cur = -2, busy = false;
+    var secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); });
+    function place() {
+      var a = links[cur];
+      if (!a) { pill.style.opacity = '0'; return; }
+      pill.style.width = a.offsetWidth + 'px'; pill.style.transform = 'translateX(' + a.offsetLeft + 'px)'; pill.style.opacity = '1';
     }
-    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true }); upd();
+    function upd() {
+      busy = false; var c = -1;
+      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 150) c = i;
+      if (c !== cur) { cur = c; links.forEach(function (a, k) { a.classList.toggle('cur', k === c); }); place(); }
+    }
+    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true });
+    addEventListener('resize', place);
+    if (D.fonts && D.fonts.ready) D.fonts.ready.then(place);
+    upd();
+    function shut() { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); }
+    menu.addEventListener('click', function () { var o = nav.classList.toggle('open'); menu.setAttribute('aria-expanded', o ? 'true' : 'false'); });
+    links.forEach(function (a) { a.addEventListener('click', shut); });
   })();
 
   // ---------- telegraph tape: a random run of dots and dashes, drifting (built twice over, so the loop has no seam) ----------
@@ -66,55 +77,55 @@
     run.append(half.cloneNode(true), half);
   })();
 
-  // ---------- hero wall: the example streams (time-lapses and stills) between cards from the run log, drifting slowly ----------
+  // ---------- hero wall: frames of the three example streams, with cards from the editor's research log between them.
+  // Every frame tile has a still; the ones on screen (up to a cap) play the stream's time-lapse from that frame on ----------
   (function () {
-    var W = DATA.wall, plane = $('plane');
-    if (!W || !plane) return;
+    var wall = $('wall'), W = DATA.wall, T = DATA.wt;
+    if (!wall || !T) return;
     var SRC = { arxiv: ['arXiv', 'var(--ax)'], hf: ['Hugging Face', 'var(--hf)'], github: ['GitHub', 'var(--ink)'] };
-    var NAME = { epm: 'Ego4D', asi: 'YouCook2', fpd: 'Ego4D' };
     function logo(k) { var s = el('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }); s.style.color = SRC[k][1]; s.append(el('path', { d: DATA.logos[k], fill: 'currentColor' })); return s; }
     function clock(t) { return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
     function card(cls, k, icon) { var d = h('div', 'tile c ' + cls), kk = h('div', 'k'); if (icon) kk.append(logo(icon)); kk.append(D.createTextNode(k)); d.append(kk); return d; }
-    var make = {
-      V: function (key) {
-        var d = h('div', 'tile m'), v = D.createElement('video');
+    var cards = [];
+    W.search.forEach(function (s) { cards.push(function () { var d = card('srch', SRC[s[0]][0] + (s[0] === 'arxiv' ? ' search' : s[0] === 'hf' ? ' models' : ' repo'), s[0]); d.append(h('div', 't', s[2])); return d; }); });
+    W.read.forEach(function (r) { cards.push(function () { var d = card('read', 'Paper read · round ' + r[0], 'arxiv'); d.append(h('div', 't', r[1])); return d; }); });
+    W.notes.forEach(function (n) { cards.push(function () { var d = card('note', 'Step log · ' + clock(n[2])); d.append(h('div', 't', n[3])); return d; }); });
+    W.cands.forEach(function (c) { cards.push(function () { var d = card('cand', 'Round ' + c[0] + ' · new harness'), f = h('div', 'f'); f.append(h('b', '', 'passed'), D.createTextNode(' · ' + c[2])); d.append(h('div', 't', c[1]), f); return d; }); });
+    W.qs.forEach(function (q) { cards.push(function () { var d = card('q', 'Asked ' + q[2] + ' s in'); d.append(h('div', 't', q[3])); return d; }); });
+    var NC = innerWidth < 700 ? 4 : innerWidth < 1150 ? 7 : 9, PER = innerWidth < 700 ? 9 : 11, CAP = innerWidth < 700 ? 8 : 18, n = T.length, ci = 0, fi = 0;
+    for (var k = 0; k < NC; k++) {
+      var col = h('div', 'wcol' + (k % 2 ? ' back' : '')), half = [];
+      col.style.setProperty('--t', (200 + (k * 37) % 90) + 's');
+      for (var i = 0; i < PER; i++) {
+        if ((i + k * 2) % 4 === 1) { half.push(cards[(ci++ * 7) % cards.length]()); continue; }         // about one tile in four is a card
+        var t = T[(fi++ * 31 + k * 11) % n], d = h('div', 'tile m'), im = new Image(), v = D.createElement('video');
+        im.src = 'assets/img/wt/' + t.f + '.jpg'; im.alt = ''; im.decoding = 'async';
         v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.preload = 'none';
-        v.poster = 'assets/video/wall-' + key + '.jpg'; v.setAttribute('data-src', 'assets/video/wall-' + key + '.mp4');
-        d.append(v, h('span', 'chip live', NAME[key] + ' stream')); return d;
-      },
-      I: function (id) { var d = h('div', 'tile m'), im = new Image(); im.src = 'assets/img/wall/' + id + '.jpg'; im.alt = ''; im.decoding = 'async'; d.append(im, h('span', 'chip', NAME[id.slice(0, 3)])); return d; },
-      S: function (i) {
-        var s = W.search[i], d = card('srch', SRC[s[0]][0] + (s[0] === 'arxiv' ? ' search' : s[0] === 'hf' ? ' models' : ' repo') + ' · round ' + s[1], s[0]);
-        d.append(h('div', 't mono', s[2]), h('div', 'f', s[3] >= 0 ? s[3] + ' results' + (s[0] === 'hf' && s[4] ? ' · ' + s[4] : '') : 'read the code')); return d;
-      },
-      R: function (i) { var r = W.read[i], d = card('read', 'Paper read · round ' + r[0], 'arxiv'); d.append(h('div', 't', r[1])); return d; },
-      N: function (i) { var n = W.notes[i], d = card('note', 'Step log · ' + n[1] + ' · ' + clock(n[2])); d.append(h('div', 't', n[3])); return d; },
-      C: function (i) {
-        var c = W.cands[i], d = card('cand', 'Round ' + c[0] + ' · new harness'), f = h('div', 'f'), b = h('b', '', 'passed');
-        f.append(b, D.createTextNode(' · validation ' + c[3].toFixed(1) + '%'));
-        d.append(h('div', 'n', c[1]), h('div', 't', c[2]), f); return d;
-      },
-      Q: function (i) { var q = W.qs[i], d = card('q', q[1] + ' · asked ' + q[2] + ' s in'); d.append(h('div', 't', q[3])); return d; }
-    };
-    var COLS = [
-      [['V', 'epm'], ['S', 0], ['I', 'asi-1'], ['N', 0], ['C', 1], ['I', 'fpd-2'], ['R', 0], ['Q', 0]],
-      [['Q', 1], ['I', 'epm-1'], ['S', 6], ['V', 'asi'], ['N', 3], ['R', 1], ['I', 'fpd-0'], ['C', 2]],
-      [['I', 'asi-0'], ['R', 2], ['V', 'fpd'], ['N', 5], ['S', 1], ['I', 'epm-2'], ['S', 7], ['C', 3]]
-    ];
-    var vids = [];
-    COLS.forEach(function (list, k) {
-      var col = h('div', 'wcol' + (k === 1 ? ' rev' : '')), half = [];
-      col.style.setProperty('--t', [120, 150, 135][k] + 's');
-      list.forEach(function (it) { half.push(make[it[0]](it[1])); });
-      half.forEach(function (n) { col.append(n); });
-      half.forEach(function (n) { col.append(n.cloneNode(true)); });            // second copy, so the drift loops without a seam
-      plane.append(col);
-    });
-    [].forEach.call(plane.querySelectorAll('video'), function (v) { v.muted = true; vids.push(v); });
-    if (RM) return;
-    function run(on) { vids.forEach(function (v) { if (on) { if (!v.src) v.src = v.getAttribute('data-src'); var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }); }
-    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { run(es[0].isIntersecting && getComputedStyle(plane.parentNode).display !== 'none'); }).observe(plane.parentNode);
-    else run(true);
+        v.setAttribute('data-src', 'assets/video/wall-' + t.key + '.mp4'); v.setAttribute('data-p', t.p); d.append(im, v); half.push(d);
+      }
+      half.forEach(function (x) { col.append(x); }); half.forEach(function (x) { col.append(x.cloneNode(true)); });
+      wall.append(col);
+    }
+    if (RM || !('IntersectionObserver' in window)) return;
+    var seen = [], playing = [];
+    function start(tile) {
+      var v = tile.lastChild; v.muted = true;
+      if (!v.getAttribute('src')) {
+        v.addEventListener('loadedmetadata', function () { try { v.currentTime = Math.min(v.duration - 1, parseFloat(v.getAttribute('data-p')) * v.duration); } catch (e) {} }, { once: true });
+        v.addEventListener('seeked', function () { v.classList.add('on'); }, { once: true });
+        v.src = v.getAttribute('data-src');
+      } else v.classList.add('on');
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    }
+    function sync() {
+      playing = playing.filter(function (t) { if (seen.indexOf(t) >= 0) return true; var v = t.lastChild; v.pause(); v.classList.remove('on'); return false; });
+      for (var i = 0; i < seen.length && playing.length < CAP; i++) { var t = seen[i]; if (playing.indexOf(t) < 0) { start(t); playing.push(t); } }
+    }
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { var k = seen.indexOf(e.target); if (e.isIntersecting && k < 0) seen.push(e.target); else if (!e.isIntersecting && k >= 0) seen.splice(k, 1); });
+      sync();
+    }, { threshold: 0.35 });
+    [].forEach.call(wall.querySelectorAll('.tile.m'), function (t) { io.observe(t); });
   })();
 
   // ---------- films: load when near, play while in view, click to pause ----------
