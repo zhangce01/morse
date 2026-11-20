@@ -51,9 +51,19 @@ html.js [data-r].in { opacity: 1; transform: none; }
 /* hero: one full screen. The background is a telegraph tape drawn on a canvas: rows of Morse code spelling the paper's title and
    summary. A lens decodes the marks under it into letters; a veil keeps the words on the left readable */
 .hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 92px 0 66px; overflow: hidden; overflow: clip; background: var(--bg); }
-.field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* upper part: rows of the streams' frames; lower part: the tape; the two fade into each other across the middle */
+.flow { position: absolute; left: 0; right: 0; top: 0; height: 66%; z-index: 0; display: grid; grid-template-rows: repeat(var(--nr, 4), minmax(0, 1fr)); gap: 14px; padding-top: 14px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 48%, transparent 100%); mask-image: linear-gradient(180deg, #000 0, #000 48%, transparent 100%); animation: flowin 1.3s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes flowin { from { opacity: 0; transform: translateX(60px); } }
+.frow { position: relative; overflow: hidden; }
+.frun { display: flex; gap: 14px; padding-right: 14px; height: 100%; width: max-content; animation: flowx var(--t, 120s) linear infinite; will-change: transform; }
+@keyframes flowx { to { transform: translateX(-50%); } }
+.ft { position: relative; flex: none; height: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #d6d3e2; box-shadow: 0 1px 2px rgba(20, 22, 25, .08), 0 10px 22px rgba(20, 22, 25, .14); }
+.ft img, .ft video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; } .ft video { opacity: 0; transition: opacity .5s; } .ft video.on { opacity: 1; }
+.field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; -webkit-mask-image: linear-gradient(180deg, transparent 33%, #000 64%); mask-image: linear-gradient(180deg, transparent 33%, #000 64%); }
 .veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(700px 78% at calc(max(0px, 50% - 560px) + 330px) 50%, color-mix(in srgb, var(--bg) 96%, transparent) 0%, color-mix(in srgb, var(--bg) 88%, transparent) 55%, transparent 100%),
+    radial-gradient(820px 44% at calc(max(0px, 50% - 560px) + 300px) 27%, color-mix(in srgb, var(--bg) 95%, transparent) 0%, color-mix(in srgb, var(--bg) 90%, transparent) 58%, transparent 100%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 55%, transparent) 0, transparent 13%, transparent 84%, var(--bg) 100%); }
 .hint { position: absolute; right: max(20px, calc(50% - 540px)); bottom: 28px; z-index: 2; margin: 0; display: flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
 .hint i { display: block; width: 5px; height: 5px; border-radius: 3px; background: var(--amber); } .hint i.d { width: 14px; } .hint i:nth-child(3) { margin-right: 8px; }
@@ -364,7 +374,7 @@ dialog#zoom[open] { animation: zoomin .25s ease-out; }
   .island.open .links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; position: absolute; top: 62px; left: 0; right: 0; padding: 8px; border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); }
   .island .pill { display: none; } .island.open .links a.cur { background: var(--ink); }
   .hero { padding: 90px 0 62px; } .who { white-space: normal; } .who br { display: none; }
-  .veil { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 52%, transparent) 0, color-mix(in srgb, var(--bg) 62%, transparent) 70%, var(--bg) 100%); } .hint { display: none; }
+  .veil { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 86%, transparent) 0, color-mix(in srgb, var(--bg) 82%, transparent) 50%, color-mix(in srgb, var(--bg) 62%, transparent) 76%, var(--bg) 100%); } .hint { display: none; }
   section { padding-top: 72px; }
   .sec-head { grid-template-columns: minmax(0, 1fr); gap: 12px; } .note { justify-self: start; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; } .stats div:nth-child(2n) { border-right: 0; margin-right: 0; }
@@ -389,7 +399,7 @@ dialog#zoom[open] { animation: zoomin .25s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html.js [data-r] { opacity: 1; transform: none; transition: none; }
-  .way.on.auto u, .rx-anim { animation: none !important; } .island .pill { transition: none; }
+  .way.on.auto u, .rx-anim, .frun, .flow { animation: none !important; } .island .pill { transition: none; }
   .bar .f { transition: none; }
 }
 }

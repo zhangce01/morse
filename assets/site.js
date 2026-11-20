@@ -66,7 +66,49 @@
     links.forEach(function (a) { a.addEventListener('click', shut); });
   })();
 
-  // ---------- hero: the first screen is a telegraph tape. Each row is real Morse code for a line of the paper's own title and
+  // ---------- hero, upper part: rows of frames of the example streams, flowing right to left; the ones on screen (up to a cap)
+  // play their stream's time-lapse. They fade out downward into the tape below ----------
+  (function () {
+    var flow = $('flow'), T = DATA.wt;
+    if (!flow || !T) return;
+    var NR = 4, PER = 12, CAP = innerWidth < 700 ? 4 : 10, n = T.length, fi = 0, runs = [];
+    flow.style.setProperty('--nr', NR);
+    for (var r = 0; r < NR; r++) {
+      var row = h('div', 'frow'), run = h('div', 'frun'), half = [];
+      for (var i = 0; i < PER; i++) {
+        var t = T[(fi++ * 31 + r * 13) % n], d = h('div', 'ft'), im = new Image(), v = D.createElement('video');
+        im.src = 'assets/img/wt/' + t.f + '.jpg'; im.alt = ''; im.decoding = 'async';
+        v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.preload = 'none';
+        v.setAttribute('data-src', 'assets/video/wall-' + t.key + '.mp4'); v.setAttribute('data-p', t.p); d.append(im, v); half.push(d);
+      }
+      half.forEach(function (x) { run.append(x); }); half.forEach(function (x) { run.append(x.cloneNode(true)); });
+      row.append(run); flow.append(row); runs.push([run, 22 + (r * 7) % 11]);          // px per second for this row
+    }
+    function pace() { runs.forEach(function (x) { x[0].style.setProperty('--t', (x[0].scrollWidth / 2 / x[1]).toFixed(1) + 's'); }); }
+    pace(); addEventListener('load', pace);
+    if (RM || !('IntersectionObserver' in window)) return;
+    var seen = [], playing = [];
+    function start(tile) {
+      var v = tile.lastChild; v.muted = true;
+      if (!v.getAttribute('src')) {
+        v.addEventListener('loadedmetadata', function () { try { v.currentTime = Math.min(v.duration - 1, parseFloat(v.getAttribute('data-p')) * v.duration); } catch (e) {} }, { once: true });
+        v.addEventListener('seeked', function () { v.classList.add('on'); }, { once: true });
+        v.src = v.getAttribute('data-src');
+      } else v.classList.add('on');
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    }
+    function sync() {
+      playing = playing.filter(function (t) { if (seen.indexOf(t) >= 0) return true; var v = t.lastChild; v.pause(); v.classList.remove('on'); return false; });
+      for (var i = 0; i < seen.length && playing.length < CAP; i++) { var t = seen[i], b = t.getBoundingClientRect(); if (playing.indexOf(t) < 0 && b.left > innerWidth * 0.42 && b.top < innerHeight * 0.4) { start(t); playing.push(t); } }
+    }
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { var k = seen.indexOf(e.target); if (e.isIntersecting && k < 0) seen.push(e.target); else if (!e.isIntersecting && k >= 0) seen.splice(k, 1); });
+      sync();
+    }, { threshold: 0.6 });
+    [].forEach.call(flow.querySelectorAll('.ft'), function (t) { io.observe(t); });
+  })();
+
+  // ---------- hero, lower part: a telegraph tape. Each row is real Morse code for a line of the paper's own title and
   // summary, moving left at its own pace; now and then a signal runs along a row. Under the lens (the pointer; a slow wander
   // when the page is left alone or has no pointer) the marks turn dark and the letter each group stands for appears above it ----------
   (function () {
@@ -103,12 +145,12 @@
       if (lens.x < -900) { idle(0); lens.x = lens.tx; lens.y = lens.ty; }
     }
     function idle(t) {
-      if (W < 700) { lens.tx = W * (0.5 + 0.3 * Math.sin(t * 0.23)); lens.ty = H * (0.5 + 0.36 * Math.sin(t * 0.17 + 1.3)); }
-      else { lens.tx = W * (0.745 + 0.17 * Math.sin(t * 0.21)); lens.ty = H * (0.5 + 0.3 * Math.sin(t * 0.33 + 1.3)); }
+      if (W < 700) { lens.tx = W * (0.5 + 0.3 * Math.sin(t * 0.23)); lens.ty = H * (0.8 + 0.1 * Math.sin(t * 0.17 + 1.3)); }
+      else { lens.tx = W * (0.7 + 0.14 * Math.sin(t * 0.21)); lens.ty = H * (0.78 + 0.1 * Math.sin(t * 0.33 + 1.3)); }
     }
     function seg(x, y, w) { ctx.moveTo(x + U / 2, y); ctx.lineTo(x + w - U / 2 + 0.01, y); }
     function draw(now) {
-      var t = (now - born) / 1000, R2 = R * R;
+      var t = (now - born) / 1000, R2 = R * R, la = RM ? 1 : Math.max(0, Math.min(1, (t - 2.3) / 0.8));      // the lens waits until the tape has been keyed in
       if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; }
       if (!lens.held) idle(t);
       lens.x += (lens.tx - lens.x) * (RM ? 1 : 0.11); lens.y += (lens.ty - lens.y) * (RM ? 1 : 0.11);
@@ -124,14 +166,14 @@
             var mk = row.m[i], x = base + mk[0] * U, w = mk[1] * U;
             if (x + w < 0 || x > W || x < front) continue;
             var k = 0, g = 0, cx = x + w / 2;
-            if (near) { var dx = (cx - lens.x) / EX, d2 = dx * dx + dy * dy; if (d2 < R2) { k = Math.min(1, (1 - Math.sqrt(d2) / R) * 2.2); k = k * k * (3 - 2 * k); } }
+            if (near) { var dx = (cx - lens.x) / EX, d2 = dx * dx + dy * dy; if (d2 < R2) { k = Math.min(1, (1 - Math.sqrt(d2) / R) * 2.2); k = k * k * (3 - 2 * k) * la; } }
             if (row.sig >= 0) { var ds = Math.abs(cx - row.sig); if (ds < 130) g = 1 - ds / 130; }
             if (k > 0.02 || g > 0.02) hot.push(x, w, k, g); else seg(x, y, w);
           }
           if (near) for (var q = 0; q < row.l.length; q++) {
             var lt = row.l[q], lx = base + lt[1] * U, ex = (lx - lens.x) / EX, e2 = ex * ex + dy * dy;
             if (lx < front || e2 > R2 * 0.86) continue;
-            var kk = Math.min(1, (1 - Math.sqrt(e2 / (R2 * 0.86))) * 2.6); hot.push(-1, lx, kk * kk * (3 - 2 * kk), lt[0]);
+            var kk = Math.min(1, (1 - Math.sqrt(e2 / (R2 * 0.86))) * 2.6); hot.push(-1, lx, kk * kk * (3 - 2 * kk) * la, lt[0]);
           }
         }
         ctx.stroke();
@@ -142,7 +184,7 @@
           if (hot[z + 2] > 0.02) { ctx.beginPath(); ctx.strokeStyle = ink; ctx.globalAlpha = hot[z + 2]; seg(hot[z], y, hot[z + 1]); ctx.stroke(); }
         }
       }
-      ctx.globalAlpha = 0.2; ctx.lineWidth = 1.2; ctx.strokeStyle = ink; ctx.beginPath(); ctx.ellipse(lens.x, lens.y, R * EX, R, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.2 * la; ctx.lineWidth = 1.2; ctx.strokeStyle = ink; ctx.beginPath(); ctx.ellipse(lens.x, lens.y, R * EX, R, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
     }
     function loop(now) { raf = 0; if (!live || D.hidden) return; draw(now); raf = requestAnimationFrame(loop); }
     function wake() { if (RM) { draw(performance.now()); return; } if (!raf) raf = requestAnimationFrame(loop); }
