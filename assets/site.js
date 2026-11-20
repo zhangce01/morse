@@ -66,66 +66,93 @@
     links.forEach(function (a) { a.addEventListener('click', shut); });
   })();
 
-  // ---------- telegraph tape: a random run of dots and dashes, drifting (built twice over, so the loop has no seam) ----------
+  // ---------- hero: the first screen is a telegraph tape. Each row is real Morse code for a line of the paper's own title and
+  // summary, moving left at its own pace; now and then a signal runs along a row. Under the lens (the pointer; a slow wander
+  // when the page is left alone or has no pointer) the marks turn dark and the letter each group stands for appears above it ----------
   (function () {
-    var run = $('tape'), half = D.createDocumentFragment(), n = 0;
-    while (n < 150) {
-      var len = 1 + Math.floor(Math.random() * 5);                                   // a "letter" of one to five marks
-      for (var k = 0; k < len; k++, n++) half.append(h('i', (Math.random() < 0.56 ? 'dot' : 'dash') + (Math.random() < 0.3 ? ' f' : '')));
-      half.append(h('i', Math.random() < 0.22 ? 'wd' : 'sp'));
-    }
-    run.append(half.cloneNode(true), half);
-  })();
+    var cv = $('field'); if (!cv || !cv.getContext) return;
+    var hero = cv.parentNode, ctx = cv.getContext('2d');
+    var CODE = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..' };
+    var TEXT = ['OPTIMIZING STREAMING MEMORY DESIGN VIA OPEN WORLD AUTO RESEARCH', 'DIAGNOSE RESEARCH PROPOSE VALIDATE', 'AN LLM EDITOR DIAGNOSES THE RECURRING FAILURES OF A STREAMING VIDEO HARNESS',
+      'MORSE', 'READS PAPERS MODEL CARDS AND CODE AND REWRITES ITS MEMORY', 'STREAMING VIDEO MEMORY'];
+    var W = 0, H = 0, U = 7, P = 31, R = 170, rows = [], amber = '#b9690f', ink = '#15112a', violet = '#5a3ec8', EX = 1.7, born = performance.now(), frame = 0, raf = 0, live = true;
+    var lens = { x: -999, y: -999, tx: 0, ty: 0, held: false };
 
-  // ---------- hero wall: frames of the three example streams, with cards from the editor's research log between them.
-  // Every frame tile has a still; the ones on screen (up to a cap) play the stream's time-lapse from that frame on ----------
-  (function () {
-    var wall = $('wall'), W = DATA.wall, T = DATA.wt;
-    if (!wall || !T) return;
-    var SRC = { arxiv: ['arXiv', 'var(--ax)'], hf: ['Hugging Face', 'var(--hf)'], github: ['GitHub', 'var(--ink)'] };
-    function logo(k) { var s = el('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }); s.style.color = SRC[k][1]; s.append(el('path', { d: DATA.logos[k], fill: 'currentColor' })); return s; }
-    function clock(t) { return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
-    function card(cls, k, icon) { var d = h('div', 'tile c ' + cls), kk = h('div', 'k'); if (icon) kk.append(logo(icon)); kk.append(D.createTextNode(k)); d.append(kk); return d; }
-    var cards = [];
-    W.search.forEach(function (s) { cards.push(function () { var d = card('srch', SRC[s[0]][0] + (s[0] === 'arxiv' ? ' search' : s[0] === 'hf' ? ' models' : ' repo'), s[0]); d.append(h('div', 't', s[2])); return d; }); });
-    W.read.forEach(function (r) { cards.push(function () { var d = card('read', 'Paper read · round ' + r[0], 'arxiv'); d.append(h('div', 't', r[1])); return d; }); });
-    W.notes.forEach(function (n) { cards.push(function () { var d = card('note', 'Step log · ' + clock(n[2])); d.append(h('div', 't', n[3])); return d; }); });
-    W.cands.forEach(function (c) { cards.push(function () { var d = card('cand', 'Round ' + c[0] + ' · new harness'), f = h('div', 'f'); f.append(h('b', '', 'passed'), D.createTextNode(' · ' + c[2])); d.append(h('div', 't', c[1]), f); return d; }); });
-    W.qs.forEach(function (q) { cards.push(function () { var d = card('q', 'Asked ' + q[2] + ' s in'); d.append(h('div', 't', q[3])); return d; }); });
-    var NC = innerWidth < 700 ? 4 : innerWidth < 1150 ? 7 : 9, PER = innerWidth < 700 ? 9 : 11, CAP = innerWidth < 700 ? 8 : 18, n = T.length, ci = 0, fi = 0;
-    for (var k = 0; k < NC; k++) {
-      var col = h('div', 'wcol' + (k % 2 ? ' back' : '')), half = [];
-      col.style.setProperty('--t', (200 + (k * 37) % 90) + 's');
-      for (var i = 0; i < PER; i++) {
-        if ((i + k * 2) % 4 === 1) { half.push(cards[(ci++ * 7) % cards.length]()); continue; }         // about one tile in four is a card
-        var t = T[(fi++ * 31 + k * 11) % n], d = h('div', 'tile m'), im = new Image(), v = D.createElement('video');
-        im.src = 'assets/img/wt/' + t.f + '.jpg'; im.alt = ''; im.decoding = 'async';
-        v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.preload = 'none';
-        v.setAttribute('data-src', 'assets/video/wall-' + t.key + '.mp4'); v.setAttribute('data-p', t.p); d.append(im, v); half.push(d);
+    function lay(text) {                                   // one line of text as marks; widths in units: dot 1, dash 3, gaps 1 / 3 / 7
+      var marks = [], letters = [], x = 0;
+      text.split(' ').forEach(function (word) {
+        word.split('').forEach(function (ch) {
+          var code = CODE[ch], x0 = x; if (!code) return;
+          code.split('').forEach(function (m) { var w = m === '-' ? 3 : 1; marks.push([x, w, letters.length]); x += w + 1; });
+          letters.push([ch, (x0 + x - 1) / 2]); x += 2;
+        });
+        x += 4;
+      });
+      return { marks: marks, letters: letters, len: x };
+    }
+    function size() {
+      var dpr = Math.min(2, devicePixelRatio || 1), b = hero.getBoundingClientRect();
+      W = Math.round(b.width); H = Math.round(b.height); U = W < 700 ? 5 : 8; P = Math.round(U * 4.6); R = Math.max(80, Math.min(150, Math.min(W, H) * 0.17));
+      cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      rows = [];
+      for (var r = 0, n = Math.ceil(H / P) + 1; r < n; r++) {
+        var L = lay(TEXT[(r * 5 + 2) % TEXT.length]);
+        rows.push({ y: r * P + P * 0.62, m: L.marks, l: L.letters, len: L.len * U, v: RM ? 0 : 12 + ((r * 7) % 11) * 2.3, ph: ((r * 733) % 997) / 997 * L.len * U, a: [0.3, 0.46, 0.38, 0.58][r % 4],
+          sig: -1, next: 1.5 + ((r * 37) % 23) * 0.6, d: 0.05 + r * 0.022 + ((r * 13) % 7) * 0.03 });
       }
-      half.forEach(function (x) { col.append(x); }); half.forEach(function (x) { col.append(x.cloneNode(true)); });
-      wall.append(col);
+      if (lens.x < -900) { idle(0); lens.x = lens.tx; lens.y = lens.ty; }
     }
-    if (RM || !('IntersectionObserver' in window)) return;
-    var seen = [], playing = [];
-    function start(tile) {
-      var v = tile.lastChild; v.muted = true;
-      if (!v.getAttribute('src')) {
-        v.addEventListener('loadedmetadata', function () { try { v.currentTime = Math.min(v.duration - 1, parseFloat(v.getAttribute('data-p')) * v.duration); } catch (e) {} }, { once: true });
-        v.addEventListener('seeked', function () { v.classList.add('on'); }, { once: true });
-        v.src = v.getAttribute('data-src');
-      } else v.classList.add('on');
-      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    function idle(t) {
+      if (W < 700) { lens.tx = W * (0.5 + 0.3 * Math.sin(t * 0.23)); lens.ty = H * (0.5 + 0.36 * Math.sin(t * 0.17 + 1.3)); }
+      else { lens.tx = W * (0.745 + 0.17 * Math.sin(t * 0.21)); lens.ty = H * (0.5 + 0.3 * Math.sin(t * 0.33 + 1.3)); }
     }
-    function sync() {
-      playing = playing.filter(function (t) { if (seen.indexOf(t) >= 0) return true; var v = t.lastChild; v.pause(); v.classList.remove('on'); return false; });
-      for (var i = 0; i < seen.length && playing.length < CAP; i++) { var t = seen[i]; if (playing.indexOf(t) < 0) { start(t); playing.push(t); } }
+    function seg(x, y, w) { ctx.moveTo(x + U / 2, y); ctx.lineTo(x + w - U / 2 + 0.01, y); }
+    function draw(now) {
+      var t = (now - born) / 1000, R2 = R * R;
+      if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; }
+      if (!lens.held) idle(t);
+      lens.x += (lens.tx - lens.x) * (RM ? 1 : 0.11); lens.y += (lens.ty - lens.y) * (RM ? 1 : 0.11);
+      ctx.clearRect(0, 0, W, H); ctx.lineCap = 'round'; ctx.lineWidth = U; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = '700 ' + Math.round(U * 1.9) + 'px "JetBrains Mono", ui-monospace, Consolas, monospace';
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r], off = ((t * row.v + row.ph) % row.len), y = row.y, dy = y - U * 0.6 - lens.y, near = Math.abs(dy) < R, hot = [];
+        var front = RM ? -1 : W - (t - row.d) * 2400;                      // the tape is keyed in from the right when the page opens
+        if (front > W) continue;
+        if (!RM) { if (row.sig < 0 && t > row.next) row.sig = W + 200; if (row.sig >= 0) { row.sig -= 9; if (row.sig < -260) { row.sig = -1; row.next = t + 5 + ((r * 29 + frame) % 17) * 0.7; } } }
+        ctx.beginPath(); ctx.strokeStyle = amber; ctx.globalAlpha = row.a;
+        for (var base = -off; base < W; base += row.len) {
+          for (var i = 0; i < row.m.length; i++) {
+            var mk = row.m[i], x = base + mk[0] * U, w = mk[1] * U;
+            if (x + w < 0 || x > W || x < front) continue;
+            var k = 0, g = 0, cx = x + w / 2;
+            if (near) { var dx = (cx - lens.x) / EX, d2 = dx * dx + dy * dy; if (d2 < R2) { k = Math.min(1, (1 - Math.sqrt(d2) / R) * 2.2); k = k * k * (3 - 2 * k); } }
+            if (row.sig >= 0) { var ds = Math.abs(cx - row.sig); if (ds < 130) g = 1 - ds / 130; }
+            if (k > 0.02 || g > 0.02) hot.push(x, w, k, g); else seg(x, y, w);
+          }
+          if (near) for (var q = 0; q < row.l.length; q++) {
+            var lt = row.l[q], lx = base + lt[1] * U, ex = (lx - lens.x) / EX, e2 = ex * ex + dy * dy;
+            if (lx < front || e2 > R2 * 0.86) continue;
+            var kk = Math.min(1, (1 - Math.sqrt(e2 / (R2 * 0.86))) * 2.6); hot.push(-1, lx, kk * kk * (3 - 2 * kk), lt[0]);
+          }
+        }
+        ctx.stroke();
+        for (var z = 0; z < hot.length; z += 4) {
+          if (hot[z] === -1) { ctx.globalAlpha = hot[z + 2]; ctx.fillStyle = ink; ctx.fillText(hot[z + 3], hot[z + 1], y - U * 1.18); continue; }
+          ctx.beginPath(); ctx.strokeStyle = amber; ctx.globalAlpha = row.a; seg(hot[z], y, hot[z + 1]); ctx.stroke();
+          if (hot[z + 3] > 0.02) { ctx.beginPath(); ctx.strokeStyle = violet; ctx.globalAlpha = hot[z + 3]; seg(hot[z], y, hot[z + 1]); ctx.stroke(); }      // a signal passing
+          if (hot[z + 2] > 0.02) { ctx.beginPath(); ctx.strokeStyle = ink; ctx.globalAlpha = hot[z + 2]; seg(hot[z], y, hot[z + 1]); ctx.stroke(); }
+        }
+      }
+      ctx.globalAlpha = 0.2; ctx.lineWidth = 1.2; ctx.strokeStyle = ink; ctx.beginPath(); ctx.ellipse(lens.x, lens.y, R * EX, R, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
     }
-    var io = new IntersectionObserver(function (es) {
-      es.forEach(function (e) { var k = seen.indexOf(e.target); if (e.isIntersecting && k < 0) seen.push(e.target); else if (!e.isIntersecting && k >= 0) seen.splice(k, 1); });
-      sync();
-    }, { threshold: 0.35 });
-    [].forEach.call(wall.querySelectorAll('.tile.m'), function (t) { io.observe(t); });
+    function loop(now) { raf = 0; if (!live || D.hidden) return; draw(now); raf = requestAnimationFrame(loop); }
+    function wake() { if (RM) { draw(performance.now()); return; } if (!raf) raf = requestAnimationFrame(loop); }
+    size(); wake();
+    var rs = 0; addEventListener('resize', function () { clearTimeout(rs); rs = setTimeout(function () { size(); wake(); }, 120); });
+    if (D.fonts && D.fonts.ready) D.fonts.ready.then(wake);
+    D.addEventListener('visibilitychange', wake);
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { live = es[0].isIntersecting; wake(); }).observe(hero);
+    hero.addEventListener('pointermove', function (e) { if (e.pointerType === 'touch') return; var b = hero.getBoundingClientRect(); lens.held = true; lens.tx = e.clientX - b.left; lens.ty = e.clientY - b.top; if (RM) draw(performance.now()); });
+    hero.addEventListener('pointerleave', function () { lens.held = false; });
   })();
 
   // ---------- films: load when near, play while in view, click to pause ----------

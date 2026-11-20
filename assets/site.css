@@ -48,33 +48,18 @@ html.js [data-r].in { opacity: 1; transform: none; }
 .island .ib:hover { background: var(--line); } .island .ib svg { width: 17px; height: 17px; }
 .island .menu { display: none; }
 
-/* hero: one full screen. A wall of the streams' frames and of the editor's research log fills it; a veil keeps the words readable */
-.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 92px 0 66px; overflow: hidden; overflow: clip; }
-.wall { position: absolute; inset: -26% -9%; display: flex; gap: 14px; transform: rotate(-9deg); z-index: 0; pointer-events: none; }
-.wcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; animation: drift var(--t, 220s) linear infinite; }
-.wcol.back { animation-direction: reverse; }
-@keyframes drift { to { transform: translateY(calc(-50% - 7px)); } }
-.tile { position: relative; flex: none; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #d6d3e2; box-shadow: 0 1px 2px rgba(20, 22, 25, .08), 0 14px 30px rgba(20, 22, 25, .16); }
-.tile img, .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-.tile video { opacity: 0; transition: opacity .5s; } .tile video.on { opacity: 1; }
-.tile.c { background: var(--surface); padding: 9% 9% 0; display: flex; flex-direction: column; gap: 6%; container-type: inline-size; }
-.tile.c .k { display: flex; align-items: center; gap: 5px; font: 600 6.2cqw/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); white-space: nowrap; overflow: hidden; }
-.tile.c .k svg { width: 9cqw; height: 9cqw; flex: none; }
-.tile.c .t { font: 600 8.2cqw/1.34 var(--display); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.tile.c.srch .t { font: 500 7.3cqw/1.42 var(--mono); } .tile.c.note .t { padding-left: 5cqw; border-left: 2px solid var(--violet); -webkit-line-clamp: 3; }
-.tile.c.cand .t { font: 600 8cqw/1.3 var(--mono); color: var(--violet); -webkit-line-clamp: 1; } .tile.c .f { font: 500 6.6cqw/1.35 var(--display); color: var(--faint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .tile.c .f b { font-weight: 600; color: var(--good); }
-.tile.c.q { background: var(--ink); } .tile.c.q .k { color: color-mix(in srgb, var(--bg) 60%, transparent); } .tile.c.q .t { color: var(--bg); font: 600 9cqw/1.28 var(--head); }
+/* hero: one full screen. The background is a telegraph tape drawn on a canvas: rows of Morse code spelling the paper's title and
+   summary. A lens decodes the marks under it into letters; a veil keeps the words on the left readable */
+.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 92px 0 66px; overflow: hidden; overflow: clip; background: var(--bg); }
+.field { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 .veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: radial-gradient(660px 72% at calc(max(0px, 50% - 560px) + 330px) 50%, color-mix(in srgb, var(--bg) 94%, transparent) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 52%, transparent 100%),
-    linear-gradient(90deg, color-mix(in srgb, var(--bg) 66%, transparent) 0%, color-mix(in srgb, var(--bg) 34%, transparent) 46%, transparent 72%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 0, transparent 14%, transparent 80%, var(--bg) 100%); }
+  background: radial-gradient(700px 78% at calc(max(0px, 50% - 560px) + 330px) 50%, color-mix(in srgb, var(--bg) 96%, transparent) 0%, color-mix(in srgb, var(--bg) 88%, transparent) 55%, transparent 100%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 55%, transparent) 0, transparent 13%, transparent 84%, var(--bg) 100%); }
+.hint { position: absolute; right: max(20px, calc(50% - 540px)); bottom: 28px; z-index: 2; margin: 0; display: flex; align-items: center; gap: 4px; font: 600 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.hint i { display: block; width: 5px; height: 5px; border-radius: 3px; background: var(--amber); } .hint i.d { width: 14px; } .hint i:nth-child(3) { margin-right: 8px; }
+@media (hover: none) { .hint { display: none; } }
 .hero-main { position: relative; z-index: 2; width: 100%; }
 .hero-main > * { max-width: 700px; }
-.tape { position: relative; height: 6px; max-width: 520px; margin-bottom: 18px; overflow: hidden; opacity: .34; -webkit-mask-image: linear-gradient(90deg, #000 70%, transparent); mask-image: linear-gradient(90deg, #000 70%, transparent); }
-.tape-run { display: flex; gap: 5px; width: max-content; animation: tape 70s linear infinite; }
-.tape-run i { display: block; height: 6px; border-radius: 3px; background: var(--amber); flex: none; }
-.tape-run i.f { opacity: .45; } .tape-run i.dot { width: 6px; } .tape-run i.dash { width: 18px; } .tape-run i.sp { width: 9px; background: none; } .tape-run i.wd { width: 38px; background: none; }
-@keyframes tape { to { transform: translateX(-50%); } }
 .kicker { font: 600 clamp(19px, 2vw, 25px)/1.26 var(--head); letter-spacing: -0.015em; color: var(--text); margin-bottom: 16px; }
 .kicker em { display: block; font-style: normal; color: var(--violet); }
 .mark { display: inline-flex; gap: clamp(8px, 1.4vw, 20px); margin: 0 0 18px; }
@@ -118,8 +103,8 @@ main .film { margin-bottom: 18px; }
 .segs button.cur, .segs button:hover { color: var(--ink); }
 
 /* the four headline numbers, on the first screen */
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; max-width: 700px; }
-.stats div { padding: 12px 14px 11px; border-radius: 14px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); }
+.stats { display: grid; grid-template-columns: repeat(4, max-content); gap: 0; margin: 4px 0 22px; max-width: 700px; }
+.stats div { padding: 2px 26px 2px 0; margin-right: 26px; border-right: 1px solid var(--line); } .stats div:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
 .stats b { display: block; font: 700 30px/1 var(--head); color: var(--ink); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stats b small { font: 600 14px/1 var(--display); color: var(--faint); margin-left: 2px; letter-spacing: 0; }
 .stats div > span { display: block; font: 500 12.5px/1.35 var(--display); color: var(--text); margin-top: 7px; white-space: nowrap; }
@@ -379,10 +364,10 @@ dialog#zoom[open] { animation: zoomin .25s ease-out; }
   .island.open .links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; position: absolute; top: 62px; left: 0; right: 0; padding: 8px; border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); }
   .island .pill { display: none; } .island.open .links a.cur { background: var(--ink); }
   .hero { padding: 90px 0 62px; } .who { white-space: normal; } .who br { display: none; }
-  .veil { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 82%, transparent) 0, color-mix(in srgb, var(--bg) 88%, transparent) 70%, var(--bg) 100%); }
+  .veil { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 52%, transparent) 0, color-mix(in srgb, var(--bg) 62%, transparent) 70%, var(--bg) 100%); } .hint { display: none; }
   section { padding-top: 72px; }
   .sec-head { grid-template-columns: minmax(0, 1fr); gap: 12px; } .note { justify-self: start; }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; } .stats div:nth-child(2n) { border-right: 0; margin-right: 0; }
   .ways, .rx, .mx-q, .mx-body { grid-template-columns: minmax(0, 1fr); }
   .mx-side { position: static; }
   .rx-side { min-height: 0; } .rx-key { margin-left: 0; }
@@ -404,7 +389,7 @@ dialog#zoom[open] { animation: zoomin .25s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html.js [data-r] { opacity: 1; transform: none; transition: none; }
-  .tape-run, .way.on.auto u, .rx-anim, .wcol { animation: none !important; } .island .pill { transition: none; }
+  .way.on.auto u, .rx-anim { animation: none !important; } .island .pill { transition: none; }
   .bar .f { transition: none; }
 }
 }
