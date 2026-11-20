@@ -43,27 +43,16 @@
     onReveal(n.closest('[data-r]'), function () { tween(1000, function (p) { n.textContent = (from + (to - from) * p).toFixed(dec); }); });
   });
 
-  // ---------- nav island: the section in view gets the dark pill; on phones the links fold into a menu ----------
+  // ---------- nav: progress line and the section in view ----------
   (function () {
-    var nav = $('island'), menu = $('menu'), pill = $('pill'), links = [].slice.call(D.querySelectorAll('#navlinks a')), cur = -2, busy = false;
-    var secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); });
-    function place() {
-      var a = links[cur];
-      if (!a) { pill.style.opacity = '0'; return; }
-      pill.style.width = a.offsetWidth + 'px'; pill.style.transform = 'translateX(' + a.offsetLeft + 'px)'; pill.style.opacity = '1';
-    }
+    var links = [].slice.call(D.querySelectorAll('#navlinks a')), secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); }), prog = $('prog'), busy = false;
     function upd() {
-      busy = false; var c = -1;
-      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 150) c = i;
-      if (c !== cur) { cur = c; links.forEach(function (a, k) { a.classList.toggle('cur', k === c); }); place(); }
+      busy = false; var cur = -1, max = root.scrollHeight - innerHeight;
+      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 130) cur = i;
+      links.forEach(function (a, i) { a.classList.toggle('cur', i === cur); });
+      prog.style.transform = 'scaleX(' + (max > 0 ? clamp(scrollY / max) : 0).toFixed(4) + ')';
     }
-    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true });
-    addEventListener('resize', place);
-    if (D.fonts && D.fonts.ready) D.fonts.ready.then(place);
-    upd();
-    function shut() { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); }
-    menu.addEventListener('click', function () { var o = nav.classList.toggle('open'); menu.setAttribute('aria-expanded', o ? 'true' : 'false'); });
-    links.forEach(function (a) { a.addEventListener('click', shut); });
+    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true }); upd();
   })();
 
   // ---------- telegraph tape: a random run of dots and dashes, drifting (built twice over, so the loop has no seam) ----------
