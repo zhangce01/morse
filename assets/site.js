@@ -67,11 +67,13 @@
   })();
 
   // ---------- hero, upper part: rows of frames of the example streams, flowing right to left; the ones on screen (up to a cap)
-  // play their stream's time-lapse. They fade out downward into the tape below ----------
+  // play their stream's time-lapse. The rows are moved by the tape's draw loop (HERO.place), so the canvas knows where each
+  // frame is and can let its marks take the picture's colours where the two meet ----------
+  var HERO = { rows: [], gap: 14 };
   (function () {
     var flow = $('flow'), T = DATA.wt;
     if (!flow || !T) return;
-    var NR = 4, PER = 12, CAP = innerWidth < 700 ? 4 : 10, n = T.length, fi = 0, runs = [];
+    var NR = 4, PER = 12, CAP = innerWidth < 700 ? 4 : 10, n = T.length, fi = 0;
     flow.style.setProperty('--nr', NR);
     for (var r = 0; r < NR; r++) {
       var row = h('div', 'frow'), run = h('div', 'frun'), half = [];
@@ -82,10 +84,12 @@
         v.setAttribute('data-src', 'assets/video/wall-' + t.key + '.mp4'); v.setAttribute('data-p', t.p); d.append(im, v); half.push(d);
       }
       half.forEach(function (x) { run.append(x); }); half.forEach(function (x) { run.append(x.cloneNode(true)); });
-      row.append(run); flow.append(row); runs.push([run, 22 + (r * 7) % 11]);          // px per second for this row
+      row.append(run); flow.append(row); HERO.rows.push({ row: row, run: run, v: RM ? 0 : 22 + (r * 7) % 11 });          // px per second for this row
     }
-    function pace() { runs.forEach(function (x) { x[0].style.setProperty('--t', (x[0].scrollWidth / 2 / x[1]).toFixed(1) + 's'); }); }
-    pace(); addEventListener('load', pace);
+    var ghost = []; for (var g = 0; g < PER; g++) { var gi = new Image(); gi.src = 'assets/img/wt/' + T[(fi++ * 31 + NR * 13) % n].f + '.jpg'; ghost.push(gi); }
+    HERO.rows.push({ ghost: ghost, v: RM ? 0 : 22 + (NR * 7) % 11 });          // one more row, never shown: the marks below the last visible row sample it
+    HERO.flow = flow; HERO.per = PER;
+    HERO.place = function (t) { HERO.rows.forEach(function (x) { if (!x.run) return; x.off = (t * x.v) % (x.run.scrollWidth / 2 || 1); x.run.style.transform = 'translate3d(' + (-x.off).toFixed(1) + 'px,0,0)'; }); };
     if (RM || !('IntersectionObserver' in window)) return;
     var seen = [], playing = [];
     function start(tile) {
@@ -119,6 +123,30 @@
       'MORSE', 'READS PAPERS MODEL CARDS AND CODE AND REWRITES ITS MEMORY', 'STREAMING VIDEO MEMORY'];
     var W = 0, H = 0, U = 7, P = 31, R = 170, rows = [], amber = '#b9690f', ink = '#15112a', violet = '#5a3ec8', EX = 1.7, born = performance.now(), frame = 0, raf = 0, live = true;
     var lens = { x: -999, y: -999, tx: 0, ty: 0, held: false };
+    // a small copy of the frame rows (one pixel for eight), redrawn every frame; the marks read their colour from it
+    var Q = 8, pic = D.createElement('canvas'), pctx = pic.getContext('2d', { willReadFrequently: true }), band = null, bandY = 0, bandW = 0, bandH = 0, ambRGB = [185, 105, 15], sample = true;
+    function sm(x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+    function shoot(t) {
+      band = null; if (!sample || !HERO.place) return;
+      HERO.place(t);
+      var first = HERO.rows[0].row, rh = first.offsetHeight, tw = rh * 4 / 3, step = tw + HERO.gap, pitch = rh + HERO.gap, y0 = first.offsetTop, half = HERO.per * step;
+      pctx.fillStyle = 'rgb(' + ambRGB.join(',') + ')'; pctx.fillRect(0, 0, pic.width, pic.height);
+      for (var r = 1; r < HERO.rows.length; r++) {
+        var x = HERO.rows[r], y = y0 + r * pitch, off = x.run ? x.off : (t * x.v) % half;
+        if (y > bandY * Q + bandH * Q || y + rh < bandY * Q) continue;
+        for (var k = 0; k < HERO.per * 2; k++) {
+          var px = k * step - off; if (px + tw < 0 || px > W) continue;
+          var src = x.ghost ? x.ghost[k % HERO.per] : x.run.children[k].lastChild.classList.contains('on') ? x.run.children[k].lastChild : x.run.children[k].firstChild;
+          try { if (src.complete === false || (src.naturalWidth === 0 && src.videoWidth === undefined)) continue; pctx.drawImage(src, px / Q, y / Q, tw / Q, rh / Q); } catch (e) {}
+        }
+      }
+      try { band = pctx.getImageData(0, bandY, bandW, bandH).data; } catch (e) { sample = false; }          // a page opened from disk may not read pixels: the marks stay amber
+    }
+    function tint(cx, y, f2) {          // the picture's colour under a mark, a little richer, shifting to amber with f2
+      var i = (Math.min(bandH - 1, Math.max(0, Math.round(y / Q) - bandY)) * bandW + Math.min(bandW - 1, Math.max(0, Math.round(cx / Q)))) * 4, r = band[i], g = band[i + 1], b = band[i + 2], m = (r + g + b) / 3, u = 1 - f2;
+      r = m + (r - m) * 1.35; g = m + (g - m) * 1.35; b = m + (b - m) * 1.35;
+      return 'rgb(' + Math.round(Math.max(0, Math.min(255, r * u + ambRGB[0] * f2))) + ',' + Math.round(Math.max(0, Math.min(255, g * u + ambRGB[1] * f2))) + ',' + Math.round(Math.max(0, Math.min(255, b * u + ambRGB[2] * f2))) + ')';
+    }
 
     function lay(text) {                                   // one line of text as marks; widths in units: dot 1, dash 3, gaps 1 / 3 / 7
       var marks = [], letters = [], x = 0;
@@ -136,6 +164,7 @@
       var dpr = Math.min(2, devicePixelRatio || 1), b = hero.getBoundingClientRect();
       W = Math.round(b.width); H = Math.round(b.height); U = W < 700 ? 5 : 8; P = Math.round(U * 4.6); R = Math.max(80, Math.min(150, Math.min(W, H) * 0.17));
       cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      pic.width = bandW = Math.ceil(W / Q); pic.height = Math.ceil(H / Q); bandY = Math.floor(H * 0.26 / Q); bandH = Math.ceil(H * 0.52 / Q);
       rows = [];
       for (var r = 0, n = Math.ceil(H / P) + 1; r < n; r++) {
         var L = lay(TEXT[(r * 5 + 2) % TEXT.length]);
@@ -151,7 +180,8 @@
     function seg(x, y, w) { ctx.moveTo(x + U / 2, y); ctx.lineTo(x + w - U / 2 + 0.01, y); }
     function draw(now) {
       var t = (now - born) / 1000, R2 = R * R, la = RM ? 1 : Math.max(0, Math.min(1, (t - 2.3) / 0.8));      // the lens waits until the tape has been keyed in
-      if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; }
+      if (frame++ % 30 === 0) { var cs = getComputedStyle(D.documentElement); amber = cs.getPropertyValue('--amber').trim() || amber; ink = cs.getPropertyValue('--ink').trim() || ink; violet = cs.getPropertyValue('--violet').trim() || violet; var hx = /^#([0-9a-f]{6})$/i.exec(amber); if (hx) ambRGB = [parseInt(hx[1].slice(0, 2), 16), parseInt(hx[1].slice(2, 4), 16), parseInt(hx[1].slice(4, 6), 16)]; }
+      shoot(t);
       if (!lens.held) idle(t);
       lens.x += (lens.tx - lens.x) * (RM ? 1 : 0.11); lens.y += (lens.ty - lens.y) * (RM ? 1 : 0.11);
       ctx.clearRect(0, 0, W, H); ctx.lineCap = 'round'; ctx.lineWidth = U; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = '700 ' + Math.round(U * 1.9) + 'px "JetBrains Mono", ui-monospace, Consolas, monospace';
@@ -159,8 +189,11 @@
         var row = rows[r], off = ((t * row.v + row.ph) % row.len), y = row.y, dy = y - U * 0.6 - lens.y, near = Math.abs(dy) < R, hot = [];
         var front = RM ? -1 : W - (t - row.d) * 2400;                      // the tape is keyed in from the right when the page opens
         if (front > W) continue;
+        // down the screen: marks appear (f1) wearing the picture's colours, then turn amber and thin out to the tape (f2)
+        var f1 = sm((y - H * 0.3) / (H * 0.17)), f2 = band ? sm((y - H * 0.5) / (H * 0.24)) : 1, al = (0.92 + (row.a - 0.92) * f2) * f1, pict = f2 < 0.995, lw = U * (1 + 0.55 * (1 - f2)), bm = [];
+        if (f1 < 0.01) continue;
         if (!RM) { if (row.sig < 0 && t > row.next) row.sig = W + 200; if (row.sig >= 0) { row.sig -= 9; if (row.sig < -260) { row.sig = -1; row.next = t + 5 + ((r * 29 + frame) % 17) * 0.7; } } }
-        ctx.beginPath(); ctx.strokeStyle = amber; ctx.globalAlpha = row.a;
+        ctx.beginPath(); ctx.strokeStyle = amber; ctx.globalAlpha = al; ctx.lineWidth = U;
         for (var base = -off; base < W; base += row.len) {
           for (var i = 0; i < row.m.length; i++) {
             var mk = row.m[i], x = base + mk[0] * U, w = mk[1] * U;
@@ -168,7 +201,7 @@
             var k = 0, g = 0, cx = x + w / 2;
             if (near) { var dx = (cx - lens.x) / EX, d2 = dx * dx + dy * dy; if (d2 < R2) { k = Math.min(1, (1 - Math.sqrt(d2) / R) * 2.2); k = k * k * (3 - 2 * k) * la; } }
             if (row.sig >= 0) { var ds = Math.abs(cx - row.sig); if (ds < 130) g = 1 - ds / 130; }
-            if (k > 0.02 || g > 0.02) hot.push(x, w, k, g); else seg(x, y, w);
+            if (k > 0.02 || g > 0.02) hot.push(x, w, k, g); else if (pict) bm.push(x, w); else seg(x, y, w);
           }
           if (near) for (var q = 0; q < row.l.length; q++) {
             var lt = row.l[q], lx = base + lt[1] * U, ex = (lx - lens.x) / EX, e2 = ex * ex + dy * dy;
@@ -177,14 +210,15 @@
           }
         }
         ctx.stroke();
+        if (pict) { ctx.lineWidth = lw; for (var bi = 0; bi < bm.length; bi += 2) { ctx.beginPath(); ctx.strokeStyle = tint(bm[bi] + bm[bi + 1] / 2, y, f2); seg(bm[bi], y, bm[bi + 1]); ctx.stroke(); } }
         for (var z = 0; z < hot.length; z += 4) {
           if (hot[z] === -1) { ctx.globalAlpha = hot[z + 2]; ctx.fillStyle = ink; ctx.fillText(hot[z + 3], hot[z + 1], y - U * 1.18); continue; }
-          ctx.beginPath(); ctx.strokeStyle = amber; ctx.globalAlpha = row.a; seg(hot[z], y, hot[z + 1]); ctx.stroke();
+          ctx.beginPath(); ctx.strokeStyle = pict ? tint(hot[z] + hot[z + 1] / 2, y, f2) : amber; ctx.globalAlpha = al; seg(hot[z], y, hot[z + 1]); ctx.stroke();
           if (hot[z + 3] > 0.02) { ctx.beginPath(); ctx.strokeStyle = violet; ctx.globalAlpha = hot[z + 3]; seg(hot[z], y, hot[z + 1]); ctx.stroke(); }      // a signal passing
           if (hot[z + 2] > 0.02) { ctx.beginPath(); ctx.strokeStyle = ink; ctx.globalAlpha = hot[z + 2]; seg(hot[z], y, hot[z + 1]); ctx.stroke(); }
         }
       }
-      ctx.globalAlpha = 0.2 * la; ctx.lineWidth = 1.2; ctx.strokeStyle = ink; ctx.beginPath(); ctx.ellipse(lens.x, lens.y, R * EX, R, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.2 * la * sm((lens.y - H * 0.34) / (H * 0.12)); ctx.lineWidth = 1.2; ctx.strokeStyle = ink; ctx.beginPath(); ctx.ellipse(lens.x, lens.y, R * EX, R, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
     }
     function loop(now) { raf = 0; if (!live || D.hidden) return; draw(now); raf = requestAnimationFrame(loop); }
     function wake() { if (RM) { draw(performance.now()); return; } if (!raf) raf = requestAnimationFrame(loop); }
