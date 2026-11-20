@@ -37,39 +37,10 @@
     nodes.forEach(function (n) { io.observe(n); });
   })();
 
-  // ---------- section heads: words rise one by one, the eyebrow decodes out of dots and dashes ----------
-  [].forEach.call(D.querySelectorAll('[data-r="head"]'), function (head) {
-    var h2 = head.querySelector('h2'), no = head.querySelector('.no'), k = 0;
-    function split(node) {
-      [].slice.call(node.childNodes).forEach(function (ch) {
-        if (ch.nodeType === 1) { split(ch); return; }
-        if (ch.nodeType !== 3) return;
-        var frag = D.createDocumentFragment(), words = ch.nodeValue.split(' ');
-        words.forEach(function (w, i) {
-          if (w) { var o = h('span', 'hw'), inn = h('span', '', w); inn.style.setProperty('--k', k++); o.append(inn); frag.append(o); }
-          if (i < words.length - 1) frag.append(D.createTextNode(' '));
-        });
-        node.replaceChild(frag, ch);
-      });
-    }
-    if (h2) { h2.setAttribute('aria-label', h2.textContent); split(h2); }
-    if (no && !RM) {
-      var text = no.textContent; no.setAttribute('aria-label', text);
-      onReveal(head, function () {
-        var t0 = performance.now();
-        (function step(now) {
-          var p = clamp((now - t0) / 900), n = Math.floor(text.length * p), out = text.slice(0, n);
-          for (var i = n; i < text.length; i++) out += text.charAt(i) === ' ' ? ' ' : Math.random() < 0.5 ? '·' : '–';
-          no.textContent = p < 1 ? out : text; if (p < 1) requestAnimationFrame(step);
-        })(t0);
-      });
-    }
-  });
-
   // ---------- numbers that count up ----------
   [].forEach.call(D.querySelectorAll('[data-count]'), function (n) {
     var to = parseFloat(n.getAttribute('data-count')), dec = +(n.getAttribute('data-dec') || 1), from = +(n.getAttribute('data-from') || 0);
-    onReveal(n.closest('[data-r]'), function () { tween(1300, function (p) { n.textContent = (from + (to - from) * p).toFixed(dec); }); });
+    onReveal(n.closest('[data-r]'), function () { tween(1000, function (p) { n.textContent = (from + (to - from) * p).toFixed(dec); }); });
   });
 
   // ---------- nav: progress line and the section in view ----------
@@ -150,7 +121,7 @@
       svg.setAttribute('data-stage', 'abc'.charAt(i));
       cards.forEach(function (c, k) { c.classList.toggle('on', k === i); c.classList.toggle('auto', !!auto && k === i && i < 2); c.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
       clearTimeout(timer);
-      if (auto && i < 2) timer = setTimeout(function () { sel(i + 1, true); }, 3600);
+      if (auto && i < 2) timer = setTimeout(function () { sel(i + 1, true); }, 5000);
     }
     cards.forEach(function (c, i) { c.addEventListener('click', function () { sel(i, false); }); });
     sel(2, false);
@@ -163,7 +134,7 @@
     function show(i) { cur = i; marks.forEach(function (m, k) { m.classList.toggle('on', k === i); }); cards.forEach(function (c, k) { c.classList.toggle('on', k === i); }); }
     cards.forEach(function (c, i) { c.addEventListener('mouseenter', function () { hold = performance.now() + 4500; show(i); }); });
     if (RM) return;
-    setInterval(function () { if ((seen[0] || seen[1]) && performance.now() > hold) show((cur + 1) % 4); }, 1900);
+    setInterval(function () { if ((seen[0] || seen[1]) && performance.now() > hold) show((cur + 1) % 4); }, 2600);
     if ('IntersectionObserver' in window) [$('four'), $('loopfig')].forEach(function (n, k) { new IntersectionObserver(function (es) { seen[k] = es[0].isIntersecting; }, { threshold: 0.25 }).observe(n); }); else seen[0] = true;
   })();
 
