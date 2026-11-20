@@ -43,16 +43,27 @@
     onReveal(n.closest('[data-r]'), function () { tween(1000, function (p) { n.textContent = (from + (to - from) * p).toFixed(dec); }); });
   });
 
-  // ---------- nav: progress line and the section in view ----------
+  // ---------- nav island: the section in view gets the dark pill; on phones the links fold into a menu ----------
   (function () {
-    var links = [].slice.call(D.querySelectorAll('#navlinks a')), secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); }), prog = $('prog'), busy = false;
-    function upd() {
-      busy = false; var cur = -1, max = root.scrollHeight - innerHeight;
-      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 130) cur = i;
-      links.forEach(function (a, i) { a.classList.toggle('cur', i === cur); });
-      prog.style.transform = 'scaleX(' + (max > 0 ? clamp(scrollY / max) : 0).toFixed(4) + ')';
+    var nav = $('island'), menu = $('menu'), pill = $('pill'), links = [].slice.call(D.querySelectorAll('#navlinks a')), cur = -2, busy = false;
+    var secs = links.map(function (a) { return D.querySelector(a.getAttribute('href')); });
+    function place() {
+      var a = links[cur];
+      if (!a) { pill.style.opacity = '0'; return; }
+      pill.style.width = a.offsetWidth + 'px'; pill.style.transform = 'translateX(' + a.offsetLeft + 'px)'; pill.style.opacity = '1';
     }
-    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true }); upd();
+    function upd() {
+      busy = false; var c = -1;
+      for (var i = 0; i < secs.length; i++) if (secs[i].getBoundingClientRect().top < 150) c = i;
+      if (c !== cur) { cur = c; links.forEach(function (a, k) { a.classList.toggle('cur', k === c); }); place(); }
+    }
+    addEventListener('scroll', function () { if (!busy) { busy = true; requestAnimationFrame(upd); } }, { passive: true });
+    addEventListener('resize', place);
+    if (D.fonts && D.fonts.ready) D.fonts.ready.then(place);
+    upd();
+    function shut() { nav.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); }
+    menu.addEventListener('click', function () { var o = nav.classList.toggle('open'); menu.setAttribute('aria-expanded', o ? 'true' : 'false'); });
+    links.forEach(function (a) { a.addEventListener('click', shut); });
   })();
 
   // ---------- telegraph tape: a random run of dots and dashes, drifting (built twice over, so the loop has no seam) ----------
@@ -64,6 +75,57 @@
       half.append(h('i', Math.random() < 0.22 ? 'wd' : 'sp'));
     }
     run.append(half.cloneNode(true), half);
+  })();
+
+  // ---------- hero wall: the example streams (time-lapses and stills) between cards from the run log, drifting slowly ----------
+  (function () {
+    var W = DATA.wall, plane = $('plane');
+    if (!W || !plane) return;
+    var SRC = { arxiv: ['arXiv', 'var(--ax)'], hf: ['Hugging Face', 'var(--hf)'], github: ['GitHub', 'var(--ink)'] };
+    var NAME = { epm: 'Ego4D', asi: 'YouCook2', fpd: 'Ego4D' };
+    function logo(k) { var s = el('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }); s.style.color = SRC[k][1]; s.append(el('path', { d: DATA.logos[k], fill: 'currentColor' })); return s; }
+    function clock(t) { return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
+    function card(cls, k, icon) { var d = h('div', 'tile c ' + cls), kk = h('div', 'k'); if (icon) kk.append(logo(icon)); kk.append(D.createTextNode(k)); d.append(kk); return d; }
+    var make = {
+      V: function (key) {
+        var d = h('div', 'tile m'), v = D.createElement('video');
+        v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.preload = 'none';
+        v.poster = 'assets/video/wall-' + key + '.jpg'; v.setAttribute('data-src', 'assets/video/wall-' + key + '.mp4');
+        d.append(v, h('span', 'chip live', NAME[key] + ' stream')); return d;
+      },
+      I: function (id) { var d = h('div', 'tile m'), im = new Image(); im.src = 'assets/img/wall/' + id + '.jpg'; im.alt = ''; im.decoding = 'async'; d.append(im, h('span', 'chip', NAME[id.slice(0, 3)])); return d; },
+      S: function (i) {
+        var s = W.search[i], d = card('srch', SRC[s[0]][0] + (s[0] === 'arxiv' ? ' search' : s[0] === 'hf' ? ' models' : ' repo') + ' · round ' + s[1], s[0]);
+        d.append(h('div', 't mono', s[2]), h('div', 'f', s[3] >= 0 ? s[3] + ' results' + (s[0] === 'hf' && s[4] ? ' · ' + s[4] : '') : 'read the code')); return d;
+      },
+      R: function (i) { var r = W.read[i], d = card('read', 'Paper read · round ' + r[0], 'arxiv'); d.append(h('div', 't', r[1])); return d; },
+      N: function (i) { var n = W.notes[i], d = card('note', 'Step log · ' + n[1] + ' · ' + clock(n[2])); d.append(h('div', 't', n[3])); return d; },
+      C: function (i) {
+        var c = W.cands[i], d = card('cand', 'Round ' + c[0] + ' · new harness'), f = h('div', 'f'), b = h('b', '', 'passed');
+        f.append(b, D.createTextNode(' · validation ' + c[3].toFixed(1) + '%'));
+        d.append(h('div', 'n', c[1]), h('div', 't', c[2]), f); return d;
+      },
+      Q: function (i) { var q = W.qs[i], d = card('q', q[1] + ' · asked ' + q[2] + ' s in'); d.append(h('div', 't', q[3])); return d; }
+    };
+    var COLS = [
+      [['V', 'epm'], ['S', 0], ['I', 'asi-1'], ['N', 0], ['C', 1], ['I', 'fpd-2'], ['R', 0], ['Q', 0]],
+      [['Q', 1], ['I', 'epm-1'], ['S', 6], ['V', 'asi'], ['N', 3], ['R', 1], ['I', 'fpd-0'], ['C', 2]],
+      [['I', 'asi-0'], ['R', 2], ['V', 'fpd'], ['N', 5], ['S', 1], ['I', 'epm-2'], ['S', 7], ['C', 3]]
+    ];
+    var vids = [];
+    COLS.forEach(function (list, k) {
+      var col = h('div', 'wcol' + (k === 1 ? ' rev' : '')), half = [];
+      col.style.setProperty('--t', [120, 150, 135][k] + 's');
+      list.forEach(function (it) { half.push(make[it[0]](it[1])); });
+      half.forEach(function (n) { col.append(n); });
+      half.forEach(function (n) { col.append(n.cloneNode(true)); });            // second copy, so the drift loops without a seam
+      plane.append(col);
+    });
+    [].forEach.call(plane.querySelectorAll('video'), function (v) { v.muted = true; vids.push(v); });
+    if (RM) return;
+    function run(on) { vids.forEach(function (v) { if (on) { if (!v.src) v.src = v.getAttribute('data-src'); var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }); }
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { run(es[0].isIntersecting && getComputedStyle(plane.parentNode).display !== 'none'); }).observe(plane.parentNode);
+    else run(true);
   })();
 
   // ---------- films: load when near, play while in view, click to pause ----------
